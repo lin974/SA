@@ -30,7 +30,7 @@ public class Anonymize{
         String randomid_string =String.format("%08d", randomid);
         database_array[4] = new String[]{randomid_string};
 
-        //回傳database_array到DB(不會用)
+        //回傳database_array到DB
     }
 
 }
