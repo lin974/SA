@@ -32,7 +32,10 @@ public class get_real_name {
           boolean comment = true;
           String real_name;
           if(comment){
-            String real_name = 
+            stmt = conn.prepareStatement(reveal_name_comment);
+            stmt.setInt(1, target_topic_id);
+            stmt.setInt(2, target_comment_id);
+
 
           }else{
 
