@@ -27,32 +27,34 @@ public class get_real_name {
             conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
             System.out.println("連線成功！");
 
-          String reveal_name_topic = "SELECT realname FROM topicdata WHERE topic_id = ?";
-          String reveal_name_comment = "SELECT realname FROM commentdata WHERE topic_id = ? AND comment_id = ?";
-          boolean comment = true;
-          String real_name;
+          String reveal_name_topic = "SELECT author_name FROM topic_data WHERE topic_id = ?";
+          String reveal_name_comment = "SELECT author_name FROM comment_data WHERE topic_id = ? AND comment_id = ?";
+          boolean comment = false;
+          String author_name = null;
           if(comment){
             stmt = conn.prepareStatement(reveal_name_comment);
             stmt.setInt(1, target_topic_id);
             stmt.setInt(2, target_comment_id);
+            rs = stmt.executeQuery();
+            if (rs.next()) {
+                author_name = rs.getString("author_name");
 
-
+            }
           }else{
-
+            stmt = conn.prepareStatement(reveal_name_topic);
+            stmt.setInt(1, target_topic_id);
+            rs = stmt.executeQuery();
+            if (rs.next()) {    
+                author_name = rs.getString("author_name");   
+            }
           }
+          System.out.println(author_name);
+          rs.close();
+          stmt.close();
             
 
-        } catch (Exception e) {
+           } catch (Exception e) {
             e.printStackTrace();
-        } finally {
-            // 關閉資源
-            try {
-                if (rs != null) rs.close();
-                if (stmt != null) stmt.close();
-                if (conn != null) conn.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
         }
     }
 }
