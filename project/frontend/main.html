@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>匿名論壇系統</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root { --primary:#2c3e50; --accent:#3498db; --card-bg:#fff; --input-bg:#fafafa; --border:#e0e0e0; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:0; min-height:100vh; font-family:"Microsoft JhengHei",sans-serif; background:#f5f7fa; display:flex; flex-direction:column; }
+  .navbar { background:var(--primary); color:white; padding:1rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; position:sticky; top:0; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+  .navbar .title { font-weight:bold; font-size:1.3rem; }
+  .navbar .links { display:flex; flex-wrap:wrap; gap:1rem; align-items:center; }
+  .navbar a, .navbar button { color:white; text-decoration:none; font-weight:bold; background:none; border:none; cursor:pointer; white-space:nowrap; }
+  .container { flex:1; display:flex; justify-content:center; align-items:flex-start; padding:2rem 1rem; }
+  .card { background:var(--card-bg); width:100%; max-width:460px; padding:3rem 2.5rem; border-radius:24px; box-shadow:0 15px 40px rgba(0,0,0,0.12); }
+  h1 { text-align:center; margin:0 0 2rem; font-size:1.8rem; color:#2c3e50; }
+  .input-group { position:relative; margin-bottom:1.5rem; }
+  .input-group input, .input-group textarea { width:100%; padding:16px 52px 16px 20px; border:2px solid var(--border); border-radius:16px; background:var(--input-bg); font-size:1.1rem; transition:all .3s; }
+  .input-group input:focus, .input-group textarea:focus { outline:none; border-color:var(--accent); background:white; box-shadow:0 0 0 4px rgba(52,152,219,0.15); }
+  .password-toggle, .comment-submit { position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; width:44px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:50%; }
+  .password-toggle:hover, .comment-submit:hover { background:rgba(0,0,0,0.08); }
+  .comment-submit { font-size:1.4rem; color:var(--accent); }
+  .btn { width:100%; padding:16px; border:none; border-radius:16px; font-size:1.2rem; font-weight:bold; cursor:pointer; margin-top:1rem; transition:.3s; }
+  .btn-primary { background:#3498db; color:white; }
+  .btn-success { background:#27ae60; color:white; }
+  .btn-reveal { display:inline-block; margin-left:10px; padding:6px 14px; background:#f39c12; color:white; border-radius:20px; font-size:0.85rem; cursor:pointer; }
+  .btn-reveal.hide { background:#95a5a6; }
+  .link { text-align:center; margin-top:1.5rem; color:#666; }
+  .link a { color:var(--accent); text-decoration:none; font-weight:bold; }
+  .post-item { padding:1.5rem 0; border-bottom:1px solid #eee; }
+  .post-item h3 a { color:var(--accent); text-decoration:none; }
+  .meta { color:#777; font-size:0.95rem; margin:8px 0; display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+  .real-name { color:#c0392b; font-weight:bold; background:#fdf2f2; padding:4px 10px; border-radius:8px; }
+  .comment { background:#f8f9fa; padding:1.2rem; margin:1.5rem 0; border-radius:16px; border-left:5px solid var(--accent); }
+  .comment-meta { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .no-permission { background:#fdf2f2; color:#c0392b; padding:12px; border-radius:12px; text-align:center; margin:1rem 0; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+
+<div class="navbar">
+  <div class="title">匿名論壇系統</div>
+  <div class="links" id="nav-right">
+    <button onclick="showPage('login')">登入</button>
+    <button onclick="showPage('register')">註冊</button>
+  </div>
+</div>
+
+<div class="container">
+  <div id="pages">
+
+    <div id="login" class="card">
+      <h1>登入系統</h1>
+      <div class="input-group"><input type="email" id="login-email" placeholder="Gmail 帳號" value="admin@gmail.com"></div>
+      <div class="input-group">
+        <input type="password" id="login-password" placeholder="密碼" value="admin1234">
+        <button type="button" class="password-toggle" onclick="togglePassword(this)">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#999" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+        </button>
+      </div>
+      <button class="btn btn-primary" onclick="doLogin()">登入</button>
+      <div class="link">還沒有帳號？<button style="background:none;border:none;color:var(--accent);font-weight:bold;cursor:pointer;" onclick="showPage('register')">立即註冊</button></div>
+    </div>
+
+    <div id="register" class="card hidden">
+      <h1>會員註冊</h1>
+      <div class="input-group"><input type="text" placeholder="真實姓名（僅管理員可見）"></div>
+      <div class="input-group"><input type="email" placeholder="Gmail 帳號"></div>
+      <div class="input-group">
+        <input type="password" placeholder="密碼（至少8位英數字混合）">
+        <button type="button" class="password-toggle" onclick="togglePassword(this)">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#999" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+        </button>
+      </div>
+      <button class="btn btn-success" onclick="alert('註冊成功！'); showPage('login')">立即註冊</button>
+    </div>
+
+    <div id="posts" class="card hidden">
+      <h1>文章列表</h1>
+      <div class="input-group"><input type="text" id="search-input" placeholder="搜尋文章標題"></div>
+      <button class="btn btn-primary" style="width:auto;padding:12px 24px;font-size:1rem;" onclick="loadPosts()">搜尋</button>
+      <button class="btn btn-success" style="float:right;" onclick="checkLoginAndGo('new-post')">發布文章</button>
+      <div id="post-list" style="margin-top:2rem;clear:both;"></div>
+    </div>
+
+    <div id="new-post" class="card hidden">
+      <h1>發布新文章</h1>
+      <div class="input-group"><input type="text" id="post-title" placeholder="文章標題（必填）" maxlength="60"></div>
+      <div class="input-group"><textarea rows="12" id="post-content" placeholder="寫下你的想法...（必填）"></textarea></div>
+      <div style="display:flex; gap:1rem;">
+        <button class="btn btn-success" onclick="submitPost()" style="flex:1;">發布文章</button>
+        <button class="btn btn-primary" onclick="showPage('posts')" style="flex:1;">取消</button>
+      </div>
+    </div>
+
+    <div id="post-detail" class="card hidden">
+      <h1 id="post-title"></h1>
+      <div class="meta" id="post-author-line"></div>
+      <div style="line-height:1.9; margin:2rem 0; font-size:1.1rem;" id="post-content"></div>
+      <hr><h2 style="margin-top:2rem;">留言區</h2>
+      <div id="comments"></div>
+      <div id="comment-box" class="input-group hidden" style="margin-top:2rem;">
+        <textarea id="comment-input" rows="4" placeholder="寫下你的留言..."></textarea>
+        <button type="button" class="comment-submit" onclick="submitComment()">Send</button>
+      </div>
+      <button class="btn btn-primary" style="margin-top:2rem;" onclick="showPage('posts')">返回列表</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let currentUser = null;
+let revealed = {};
+let currentPostId = null;
+let nextPostId = 100;
+
+const realNameDB = { "User784521":"王小花", "User392847":"林小強", "User105639":"李大明", "User671294":"陳美美" };
+
+let posts = [
+  {id:1, title:"最近天氣真的很怪", content:"連續下雨快一個月了…", authorAnon:"User784521", createdAt:"2025-12-03 18:30"},
+  {id:2, title:"求藍牙耳機推薦～預算3000", content:"想要音質好又耐用的", authorAnon:"User392847", createdAt:"2025-12-02 14:20"}
+];
+posts[0].comments = [
+  {id:1, authorAnon:"User105639", content:"我傘已經壞三支了", time:"19:15"},
+  {id:2, authorAnon:"User671294", content:"聽說是反聖嬰現象～", time:"19:30"}
+];
+
+function generateAnon() { return "User" + Math.floor(Math.random()*900000 + 100000); }
+
+function togglePassword(btn) {
+  const input = btn.previousElementSibling;
+  if (input.type === "password") {
+    input.type = "text";
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#999" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><path d="M9 12a3 3 0 1 0 6 0 3 3 0 0 0-6 0z" fill="#999"></path><path d="M3 3l18 18"></path></svg>';
+  } else {
+    input.type = "password";
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#999" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+  }
+}
+
+function showPage(id) {
+  document.querySelectorAll('.card').forEach(c => c.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  if (id === 'post-detail') renderComments();
+  if ((id === 'post-detail' || id === 'new-post') && currentUser) {
+    document.getElementById('comment-box')?.classList.remove('hidden');
+  }
+}
+
+function checkLoginAndGo(page) {
+  if (!currentUser) { alert("請先登入才能發文喔！"); showPage('login'); return; }
+  showPage(page);
+}
+
+function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  currentUser = (email === "admin@gmail.com") 
+    ? {role:"admin", name:"系統管理員", anon:"Admin"} 
+    : {role:"user", name:"匿名使用者", anon: generateAnon()};
+
+  document.getElementById('nav-right').innerHTML = `
+    <span>歡迎，${currentUser.name}</span>
+    <button onclick="showPage('posts')">文章列表</button>
+    <button onclick="checkLoginAndGo('new-post')">發布文章</button>
+    <button onclick="logout()">登出</button>
+  `;
+  showPage('posts');
+  loadPosts();
+}
+
+function logout() {
+  currentUser = null; revealed = {}; currentPostId = null;
+  document.getElementById('nav-right').innerHTML = `
+    <button onclick="showPage('login')">登入</button>
+    <button onclick="showPage('register')">註冊</button>
+  `;
+  document.getElementById('comment-box')?.classList.add('hidden');
+  showPage('login');
+}
+
+function submitPost() {
+  if (!currentUser) return alert("請先登入");
+  const title = document.getElementById('post-title').value.trim();
+  const content = document.getElementById('post-content').value.trim();
+  if (!title || !content) return alert("標題與內容都要填喔！");
+  if (title.length > 60) return alert("標題最多60字");
+
+  const now = new Date();
+  const newPost = {
+    id: nextPostId++,
+    title, content,
+    authorAnon: currentUser.role === "admin" ? "Admin" : currentUser.anon,
+    createdAt: now.toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'}) + " " + now.toTimeString().slice(0,5),
+    comments: []
+  };
+  realNameDB[newPost.authorAnon] = currentUser.role === "admin" ? "系統管理員" : "某位使用者";
+  posts.unshift(newPost);
+  alert("文章發布成功！");
+  document.getElementById('post-title').value = "";
+  document.getElementById('post-content').value = "";
+  showPage('posts');
+  loadPosts();
+}
+
+function loadPosts() {
+  const kw = (document.getElementById('search-input')?.value || "").toLowerCase();
+  const list = document.getElementById('post-list'); list.innerHTML = "";
+  posts.filter(p => p.title.toLowerCase().includes(kw)).forEach(p => {
+    const div = document.createElement('div'); div.className = "post-item";
+    div.innerHTML = `
+      <h3><a href="#" onclick="event.preventDefault(); showDetail(${p.id})">${p.title}</a></h3>
+      <div class="meta">
+        ${p.authorAnon} ｜ ${p.createdAt}
+        ${currentUser ? `<button class="btn-reveal" onclick="event.preventDefault(); toggleRealName('post',${p.id},'${p.authorAnon}',this)">查看真實姓名</button>` : ''}
+      </div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function showDetail(id) {
+  currentPostId = id;
+  const p = posts.find(x => x.id === id);
+  document.getElementById('post-title').textContent = p.title;
+  document.getElementById('post-content').textContent = p.content;
+  document.getElementById('post-author-line').innerHTML = `
+    ${p.authorAnon} ｜ ${p.createdAt}
+    ${currentUser ? `<button class="btn-reveal" onclick="event.preventDefault(); toggleRealName('post',${p.id},'${p.authorAnon}',this)">查看真實姓名</button>` : ''}
+  `;
+  renderComments();
+  showPage('post-detail');
+}
+
+function renderComments() {
+  const post = posts.find(p => p.id === currentPostId);
+  const div = document.getElementById('comments'); div.innerHTML = "";
+  (post.comments || []).forEach(c => {
+    const item = document.createElement('div'); item.className = "comment";
+    item.innerHTML = `
+      <strong>${c.authorAnon}：</strong>${c.content}
+      <div class="comment-meta">
+        <small style="color:#999;">${c.time}</small>
+        ${currentUser ? `<button class="btn-reveal" onclick="event.preventDefault(); toggleRealName('comment',${c.id},'${c.authorAnon}',this)">查看真實姓名</button>` : ''}
+      </div>
+    `;
+    div.appendChild(item);
+  });
+}
+
+function submitComment() {
+  if (!currentUser) return alert("請先登入才能留言");
+  const input = document.getElementById('comment-input');
+  const content = input.value.trim();
+  if (!content) return alert("請輸入留言內容");
+  const post = posts.find(p => p.id === currentPostId);
+  post.comments.push({
+    id: Date.now(),
+    authorAnon: currentUser.role === "admin" ? "Admin" : currentUser.anon,
+    content,
+    time: new Date().toTimeString().slice(0,5)
+  });
+  input.value = "";
+  renderComments();
+}
+
+function toggleRealName(type, id, anon, btn) {
+  if (!currentUser) return;
+  const key = type + "-" + id;
+  if (currentUser.role !== "admin") {
+    const existing = btn.parentNode.querySelector('.no-permission');
+    if (existing) { existing.style.opacity = '0.5'; setTimeout(()=>existing.style.opacity='1',100); return; }
+    const msg = document.createElement('div'); msg.className = "no-permission";
+    msg.textContent = "抱歉！您沒有此權限"; btn.parentNode.appendChild(msg);
+    setTimeout(() => msg.remove(), 3000);
+    return;
+  }
+  if (revealed[key]) {
+    btn.parentNode.querySelector('.real-name')?.remove();
+    btn.textContent = "查看真實姓名"; btn.classList.remove('hide');
+    delete revealed[key];
+  } else {
+    const span = document.createElement('span'); span.className = "real-name";
+    span.textContent = `（${realNameDB[anon] || "未知"}）`;
+    btn.parentNode.appendChild(span);
+    btn.textContent = "隱藏真實姓名"; btn.classList.add('hide');
+    revealed[key] = true;
+  }
+}
+
+showPage('login');
+</script>
+</body>
+</html>
