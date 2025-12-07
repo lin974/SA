@@ -38,7 +38,6 @@ public class Search {
 
                     while (rs.next()) {
                         found = true;
-                        // 取出資料 (欄位名稱必須跟資料庫裡的一樣)
                         String author = rs.getString("random_name");
                         String content = rs.getString("topic_content");
                         String time = rs.getString("topic_time");
