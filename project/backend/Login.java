@@ -1,25 +1,19 @@
+import java.sql.*;
 import java.util.Scanner;
 
 public class Login {
+    // ==========================================
+    // 資料庫連線設定 (與 Register.java 相同)
+    // ==========================================
+    static final String DB_URL = "jdbc:mysql://127.0.0.1:3306/SA_DB?serverTimezone=UTC";
+    static final String DB_USER = "root";
+    static final String DB_PASSWORD = "123456";
 
     public static void main(String[] args) {
-
-        /* 
-           DB 模擬格式：
-           0 = username
-           1 = email(account)
-           2 = password
-           3 = role (admin / user)
-        */
-
-        String[][] database_array = new String[4][];
-
-        database_array[0] = new String[]{"AdminUser"};       // username
-        database_array[1] = new String[]{"admin@test.com"}; // email
-        database_array[2] = new String[]{"admin123"};       // password
-        database_array[3] = new String[]{"admin"};          // role
-
         Scanner scanner = new Scanner(System.in);
+        Connection conn = null;
+        PreparedStatement stmt = null;
+        ResultSet rs = null;
 
         System.out.println("=== 登入系統 ===");
         System.out.print("請輸入 email: ");
@@ -28,26 +22,66 @@ public class Login {
         System.out.print("請輸入密碼: ");
         String inputPassword = scanner.nextLine();
 
-        String dbEmail = database_array[1][0];
-        String dbPassword = database_array[2][0];
-        String dbUsername = database_array[0][0];
-        String dbRole = database_array[3][0];
+        // 1. 準備 SQL 查詢語句，根據 email 查找用戶的所有資訊
+        // 假設 personaldata 表格包含 realname, email, password 欄位
+        String sql = "SELECT realname, email, password FROM personaldata WHERE email = ?";
 
-        if (inputEmail.equals(dbEmail) && inputPassword.equals(dbPassword)) {
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+            stmt = conn.prepareStatement(sql);
 
-            System.out.println("\n登入成功！");
-            System.out.println("歡迎 " + dbUsername);
+            // 設置參數：根據輸入的 email 查詢
+            stmt.setString(1, inputEmail);
 
-            if (dbRole.equals("admin")) {
-                System.out.println("身分：系統管理者 (Admin)");
-                // 管理者可做的事情
-                System.out.println("你可以進入後台管理頁面。");
+            // 執行查詢
+            rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                // 資料庫中找到此 email
+                String dbRealname = rs.getString("realname");
+                String dbPassword = rs.getString("password");
+                String dbEmail = rs.getString("email");
+                
+                // 註：您的 personaldata 表格目前沒有 role 欄位，故暫時不判斷身份
+                // 為了模擬 admin/user 邏輯，您可以選擇性在 personaldata 裡加入 role 欄位
+
+                // 2. 驗證密碼 (在實際應用中，這裡應對密碼進行雜湊比對)
+                if (inputPassword.equals(dbPassword)) {
+                    
+                    System.out.println("\n登入成功！");
+                    System.out.println("歡迎 " + dbRealname);
+                    
+                    // 由於 personaldata 沒有 role 欄位，這裡固定顯示一般用戶
+                    System.out.println("身分：一般使用者"); 
+                    
+                    // 如果您想增加管理者功能，請在 personaldata 表格中加入 role 欄位
+
+                } else {
+                    // 密碼不正確
+                    System.out.println("\n登入失敗：帳號或密碼錯誤。");
+                }
             } else {
-                System.out.println("身分：一般使用者");
+                // 資料庫中找不到此 email
+                System.out.println("\n登入失敗：帳號或密碼錯誤。");
             }
 
-        } else {
-            System.out.println("\n登入失敗：帳號或密碼錯誤。");
+        } catch (ClassNotFoundException e) {
+            System.out.println("找不到 MySQL Driver！");
+            e.printStackTrace();
+        } catch (SQLException e) {
+            System.out.println("資料庫操作錯誤！請檢查連線設定或 personaldata 表格是否存在。");
+            e.printStackTrace();
+        } finally {
+            // 確保所有資源關閉 (rs, stmt, conn)
+            try {
+                if (rs != null) rs.close();
+                if (stmt != null) stmt.close();
+                if (conn != null) conn.close();
+                scanner.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
 }
