@@ -2,62 +2,66 @@ import java.sql.*;
 import java.util.Scanner;
 
 public class Search {
+    // 1. 連線設定 (跟你的 Register.java 保持完全一致)
+    static final String DB_URL = "jdbc:mysql://127.0.0.1:3306/SA_DB?serverTimezone=UTC";
+    static final String DB_USER = "root";
+    static final String DB_PASSWORD = "123456";
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
 
-        System.out.println("=== 文章搜尋系統  ===");
-        System.out.print("請輸入搜尋關鍵字 : ");
+        System.out.println("=== 論壇文章搜尋系統 ===");
+        System.out.print("請輸入搜尋關鍵字 (搜尋內容): ");
         String keyword = scanner.nextLine();
 
-        String url = "jdbc:mysql://127.0.0.1:3306/SA_DB?serverTimezone=UTC";
-        String user = "root";   
-        String pass = "你的密碼"; 
-
-        Connection conn = null;
-        PreparedStatement stmt = null;
-        ResultSet rs = null;
+        // 2. SQL 查詢語法
+        // 針對 topic_data 表格進行模糊搜尋 (搜尋 topic_content 欄位)
+        // 注意：這裡假設你的表格是 topic_data，欄位是 random_name, topic_content, topic_time
+        String sql = "SELECT random_name, topic_content, topic_time FROM topic_data WHERE topic_content LIKE ?";
 
         try {
+            // 載入驅動
             Class.forName("com.mysql.cj.jdbc.Driver");
-            conn = DriverManager.getConnection(url, user, pass);
 
-            String sql = "SELECT topic_id, title, random_name, topic_time FROM topic_data WHERE title LIKE ?";
-            
-            stmt = conn.prepareStatement(sql);
-            stmt.setString(1, "%" + keyword + "%");
-            rs = stmt.executeQuery();
+            // 建立連線與 Statement (使用 try-with-resources 自動關閉)
+            try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            System.out.println("\n--- 搜尋結果 ---");
-            boolean found = false;
+                // 3. 設定搜尋參數 (%關鍵字%)
+                stmt.setString(1, "%" + keyword + "%");
 
-            while (rs.next()) {
-                found = true;
-                String title = rs.getString("title");
-                
-                String author = rs.getString("random_name"); 
-                String date = rs.getString("topic_time");
-                
-                System.out.println("標題: " + title);
-                System.out.println("作者: " + author);
-                System.out.println("時間: " + date);
-                System.out.println("-----------------------");
+                // 4. 執行查詢
+                try (ResultSet rs = stmt.executeQuery()) {
+                    
+                    System.out.println("\n--- 搜尋結果 ---");
+                    boolean found = false;
+
+                    while (rs.next()) {
+                        found = true;
+                        // 取出資料 (欄位名稱必須跟資料庫裡的一樣)
+                        String author = rs.getString("random_name");
+                        String content = rs.getString("topic_content");
+                        String time = rs.getString("topic_time");
+
+                        System.out.println("發文者: " + author);
+                        System.out.println("時間:   " + time);
+                        System.out.println("內容:   " + content);
+                        System.out.println("-----------------------");
+                    }
+
+                    if (!found) {
+                        System.out.println("找不到包含 \"" + keyword + "\" 的文章。");
+                    }
+                }
             }
-
-            if (!found) {
-                System.out.println("找不到包含 \"" + keyword + "\" 的文章。");
-            }
-
-        } catch (Exception e) {
+        } catch (ClassNotFoundException e) {
+            System.out.println("找不到 MySQL Driver！");
+            e.printStackTrace();
+        } catch (SQLException e) {
+            System.out.println("資料庫連線錯誤！請確認 topic_data 表格是否存在。");
             e.printStackTrace();
         } finally {
-            try {
-                if (rs != null) rs.close();
-                if (stmt != null) stmt.close();
-                if (conn != null) conn.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
+            scanner.close();
         }
     }
 }
