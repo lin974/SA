@@ -157,27 +157,113 @@ function checkLoginAndGo(page) {
 
 function doLogin() {
   const email = document.getElementById('login-email').value.trim();
-  currentUser = (email === "admin@gmail.com") 
-    ? {role:"admin", name:"系統管理員", anon:"Admin"} 
-    : {role:"user", name:"匿名使用者", anon: generateAnon()};
+  const password = document.getElementById('login-password').value;
 
-  document.getElementById('nav-right').innerHTML = `
-    <span>歡迎，${currentUser.name}</span>
-    <button onclick="showPage('posts')">文章列表</button>
-    <button onclick="checkLoginAndGo('new-post')">發布文章</button>
-    <button onclick="logout()">登出</button>
-  `;
-  showPage('posts');
-  loadPosts();
+  if (!email || !password) {
+    alert("請填寫帳號與密碼");
+    return;
+  }
+
+  fetch('/api/login', { 
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  })
+  .then(res => {
+    if (!res.ok) {
+      return res.json().then(err => { throw new Error(err.message || '登入失敗') });
+    }
+    return res.json();
+  })
+  .then(data => {
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('anonCode', data.anonCode);
+    localStorage.setItem('role', data.role);
+    localStorage.setItem('realName', data.realName || '使用者');
+
+    currentUser = {
+      role: data.role,
+      name: data.role === 'admin' ? '系統管理員' : '使用者',
+      anon: data.anonCode
+    };
+
+    document.getElementById('nav-right').innerHTML = `
+      <span>歡迎，${currentUser.name}</span>
+      <button onclick="showPage('posts')">文章列表</button>
+      <button onclick="checkLoginAndGo('new-post')">發布文章</button>
+      <button onclick="logout()">登出</button>
+    `;
+
+    showPage('posts');
+    loadPosts();
+  })
+  .catch(err => {
+    console.error(err);
+    alert(err.message || "帳號或密碼錯誤");
+  });
 }
 
+function doRegister() {
+  const realName = document.getElementById('reg-name')?.value.trim();
+  const email = document.getElementById('reg-email')?.value.trim();
+  const password = document.getElementById('reg-password')?.value;
+  const password2 = document.getElementById('reg-password2')?.value;
+
+  // 前端基本驗證
+  if (!realName || !email || !password || !password2) {
+    alert("請填寫完整資料");
+    return;
+  }
+  if (password !== password2) {
+    alert("兩次密碼不一致");
+    return;
+  }
+  if (password.length < 8) {
+    alert("密碼至少 8 碼");
+    return;
+  }
+  if (!/@gmail\.com$/.test(email)) {
+    alert("請使用 Gmail 註冊");
+    return;
+  }
+
+  fetch('/api/register', { 
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ realName, email, password })
+  })
+  .then(res => {
+    if (!res.ok) {
+      return res.json().then(err => { throw new Error(err.message || '註冊失敗') });
+    }
+    return res.json();
+  })
+  .then(data => {
+    alert("註冊成功！請用剛剛的帳號密碼登入");
+    showPage('login');
+    
+    document.getElementById('login-email').value = email;
+    document.getElementById('login-password').value = password;
+  })
+  .catch(err => {
+    console.error(err);
+    alert(err.message || "註冊失敗（可能帳號已存在）");
+  });
+}
+  
 function logout() {
-  currentUser = null; revealed = {}; currentPostId = null;
+  localStorage.clear();
+  currentUser = null;
+  revealed = {}; 
+  currentPostId = null;
+
   document.getElementById('nav-right').innerHTML = `
     <button onclick="showPage('login')">登入</button>
     <button onclick="showPage('register')">註冊</button>
   `;
+
   document.getElementById('comment-box')?.classList.add('hidden');
+
   showPage('login');
 }
 
@@ -294,3 +380,4 @@ showPage('login');
 </script>
 </body>
 </html>
+
