@@ -1,108 +1,150 @@
-import java.sql.*;
-import java.time.LocalDateTime;
-import java.security.SecureRandom;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.Random;
+import java.util.Scanner;
 
-/* ========= DB（如果你們專案已有 DB 類別，請刪掉這段避免重複） ========= */
-class DB {
-    static final String URL =
-            "jdbc:mysql://127.0.0.1:3306/SA_DB?serverTimezone=UTC&useSSL=false&characterEncoding=utf8";
-    static final String USER = "root";
-    static final String PASS = "123456";
+public class CreateTopic {
 
-    static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(URL, USER, PASS);
-    }
-}
+    // === 資料庫設定 ===
+    // ⚠️ 請確認您的資料庫名稱是 SA_SQL_BASIC 還是 SA_DB
+    static final String DB_URL = "jdbc:mysql://127.0.0.1:3306/SA_SQL_BASIC?serverTimezone=UTC";
+    static final String DB_USER = "javauser";
+    static final String DB_PASS = "123456";
 
-/* ========= 匿名：每次發文都不同 ========= */
-class Anonymize {
-    private static final SecureRandom RNG = new SecureRandom();
-    private static final char[] ALPH = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".toCharArray();
+    static Scanner scanner = new Scanner(System.in);
+    
+    // 關鍵變數：用來記住現在是誰在使用系統 (模擬網頁 Session)
+    static String currentLoginUser = ""; 
 
-    public static String newAnon() {
-        StringBuilder sb = new StringBuilder("ANON-");
-        for (int i = 0; i < 6; i++) sb.append(ALPH[RNG.nextInt(ALPH.length)]);
-        return sb.toString();
-    }
-}
+    public static void main(String[] args) {
+        
+        // === 步驟 0: 模擬登入 (對應前端右上角的顯示) ===
+        System.out.println("=== 系統啟動 ===");
+        System.out.print("請先登入您的真實姓名 (模擬登入): ");
+        currentLoginUser = scanner.nextLine();
+        System.out.println("歡迎，" + currentLoginUser + "！您現在可以開始發文了。\n");
 
-/* ========= Topic Model ========= */
-class Topic {
-    public int topicId;
-    public final String title;
-    public final String content;
-    public final int authorId;         // 真實身份對應（內部用）
-    public final String authorAnon;    // 當次匿名（公開顯示）
-    public final LocalDateTime createdAt;
+        while (true) {
+            System.out.println("==================================");
+            System.out.println("   匿名發文系統 (目前使用者: " + currentLoginUser + ")");
+            System.out.println("==================================");
+            System.out.println("1. 發布新文章 (包含自動匿名化)");
+            System.out.println("2. 文章列表 (一般訪客視角)");
+            System.out.println("3. 管理員後台 (查看真實姓名)");
+            System.out.println("0. 離開");
+            System.out.print("請輸入選項: ");
 
-    public Topic(String title, String content, int authorId, String authorAnon, LocalDateTime createdAt) {
-        this.title = title;
-        this.content = content;
-        this.authorId = authorId;
-        this.authorAnon = authorAnon;
-        this.createdAt = createdAt;
-    }
-}
+            String choice = scanner.nextLine();
 
-/* ========= Repository ========= */
-interface TopicRepository {
-    int save(Topic t); // 回傳 topic_id
-}
-
-class MySQLTopicRepository implements TopicRepository {
-    @Override
-    public int save(Topic t) {
-        String sql = "INSERT INTO topics(title, content, author_id, author_anon, created_at) VALUES (?, ?, ?, ?, ?)";
-        try (Connection conn = DB.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-
-            ps.setString(1, t.title);
-            ps.setString(2, t.content);
-            ps.setInt(3, t.authorId);
-            ps.setString(4, t.authorAnon);
-            ps.setTimestamp(5, Timestamp.valueOf(t.createdAt));
-            ps.executeUpdate();
-
-            try (ResultSet rs = ps.getGeneratedKeys()) {
-                if (rs.next()) return rs.getInt(1);
-                throw new RuntimeException("無法取得 topic_id");
+            switch (choice) {
+                case "1":
+                    createTopic(); // 呼叫發文功能
+                    break;
+                case "2":
+                    readTopic();   // 呼叫讀取功能
+                    break;
+                case "3":
+                    verifyAdmin(); // 呼叫管理員驗證
+                    break;
+                case "0":
+                    System.out.println("系統關閉。");
+                    return;
+                default:
+                    System.out.println("無效輸入");
             }
-        } catch (SQLException e) {
-            throw new RuntimeException("貼文儲存失敗：" + e.getMessage(), e);
         }
     }
-}
 
-/* ========= Service（你交付給整合者/網頁 API 的核心入口） ========= */
-interface TopicService {
-    int createTopic(int userId, String title, String content);
-}
+    // === 功能 1: 發文 + 匿名化 (二合一) ===
+    public static void createTopic() {
+        System.out.println("\n--- [發布新文章] ---");
+        
+        // 1. 介面輸入 (只問標題與內容)
+        System.out.print("文章標題 (必須): ");
+        String title = scanner.nextLine();
 
-class TopicServiceImpl implements TopicService {
-    private final TopicRepository repo;
-    private static final int TITLE_MAX = 200;
-    private static final int CONTENT_MAX = 5000;
+        System.out.print("寫下你的想法 (必須): ");
+        String content = scanner.nextLine();
 
-    public TopicServiceImpl(TopicRepository repo) {
-        this.repo = repo;
+        // 2. 系統背景處理 (使用者看不到)
+        // [合成點 A] 抓取真實姓名
+        String realName = currentLoginUser;
+        
+        // [合成點 B] 產生匿名代號 (Anonymize)
+        String randomName = "User" + new Random().nextInt(999999);
+
+        // 3. 資料庫寫入
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS)) {
+            // [合成點 C] 將內容、匿名、真名一次寫入
+            String sql = "INSERT INTO topic_data (title, topic_content, random_name, real_name, topic_time) VALUES (?, ?, ?, ?, NOW())";
+            
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt.setString(1, title);
+            stmt.setString(2, content);
+            stmt.setString(3, randomName); // 寫入匿名
+            stmt.setString(4, realName);   // 寫入真名 (隱藏欄位)
+
+            int rows = stmt.executeUpdate();
+            if (rows > 0) {
+                System.out.println("✅ 發布成功！");
+                System.out.println("系統已自動為您匿名為: " + randomName);
+            }
+        } catch (Exception e) {
+            System.out.println("❌ 資料庫錯誤: " + e.getMessage());
+        }
     }
 
-    @Override
-    public int createTopic(int userId, String title, String content) {
-        if (userId <= 0) throw new IllegalArgumentException("請先登入");
+    // === 功能 2: 文章列表 (一般人看) ===
+    public static void readTopic() {
+        System.out.println("\n--- [文章列表] ---");
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS)) {
+            // 只撈取 random_name，不撈取 real_name
+            String sql = "SELECT title, topic_content, random_name, topic_time FROM topic_data ORDER BY topic_time DESC";
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            ResultSet rs = stmt.executeQuery();
 
-        String t = (title == null) ? "" : title.trim();
-        String c = (content == null) ? "" : content.trim();
+            while (rs.next()) {
+                System.out.println("--------------------------------");
+                System.out.println("標題: " + rs.getString("title"));
+                System.out.println("作者: " + rs.getString("random_name"));
+                System.out.println("時間: " + rs.getString("topic_time"));
+                System.out.println("[模擬按鈕] 查看真實姓名 -> 🚫 無權限");
+            }
+            System.out.println("--------------------------------");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
-        if (t.isEmpty()) throw new IllegalArgumentException("標題不可空白");
-        if (c.isEmpty()) throw new IllegalArgumentException("內容不可空白");
-        if (t.length() > TITLE_MAX) throw new IllegalArgumentException("標題太長（上限 " + TITLE_MAX + " 字）");
-        if (c.length() > CONTENT_MAX) throw new IllegalArgumentException("內容太長（上限 " + CONTENT_MAX + " 字）");
+    // === 功能 3: 管理員後台 ===
+    public static void verifyAdmin() {
+        System.out.print("請輸入管理員密碼 (預設 admin123): ");
+        if ("admin123".equals(scanner.nextLine())) {
+            adminReadTopic();
+        } else {
+            System.out.println("❌ 密碼錯誤");
+        }
+    }
 
-        // ✅ 每次發文產生新的匿名
-        String anon = Anonymize.newAnon();
+    public static void adminReadTopic() {
+        System.out.println("\n--- [管理員模式] ---");
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS)) {
+            // 管理員可以看到 real_name
+            String sql = "SELECT * FROM topic_data ORDER BY topic_time DESC";
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            ResultSet rs = stmt.executeQuery();
 
-        Topic newTopic = new Topic(t, c, userId, anon, LocalDateTime.now());
-        return repo.save(newTopic);
+            while (rs.next()) {
+                System.out.println("--------------------------------");
+                System.out.println("標題: " + rs.getString("title"));
+                System.out.println("前台顯示: " + rs.getString("random_name"));
+                System.out.println("🛑 真實姓名: " + rs.getString("real_name"));
+            }
+            System.out.println("--------------------------------");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
