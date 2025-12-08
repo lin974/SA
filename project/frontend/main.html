@@ -112,49 +112,12 @@
 </div>
 
 <script>
-let currentUser = null;
-let revealed = {};
-let currentPostId = null;
-let nextPostId = 100;
+// ==================== 全域變數 ====================
+let currentUser = null;    
+let currentPostId = null;  
+let revealed = {};          
 
-const realNameDB = { "User784521":"王小花", "User392847":"林小強", "User105639":"李大明", "User671294":"陳美美" };
-
-let posts = [
-  {id:1, title:"最近天氣真的很怪", content:"連續下雨快一個月了…", authorAnon:"User784521", createdAt:"2025-12-03 18:30"},
-  {id:2, title:"求藍牙耳機推薦～預算3000", content:"想要音質好又耐用的", authorAnon:"User392847", createdAt:"2025-12-02 14:20"}
-];
-posts[0].comments = [
-  {id:1, authorAnon:"User105639", content:"我傘已經壞三支了", time:"19:15"},
-  {id:2, authorAnon:"User671294", content:"聽說是反聖嬰現象～", time:"19:30"}
-];
-
-function generateAnon() { return "User" + Math.floor(Math.random()*900000 + 100000); }
-
-function togglePassword(btn) {
-  const input = btn.previousElementSibling;
-  if (input.type === "password") {
-    input.type = "text";
-    btn.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#999" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><path d="M9 12a3 3 0 1 0 6 0 3 3 0 0 0-6 0z" fill="#999"></path><path d="M3 3l18 18"></path></svg>';
-  } else {
-    input.type = "password";
-    btn.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#999" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
-  }
-}
-
-function showPage(id) {
-  document.querySelectorAll('.card').forEach(c => c.classList.add('hidden'));
-  document.getElementById(id).classList.remove('hidden');
-  if (id === 'post-detail') renderComments();
-  if ((id === 'post-detail' || id === 'new-post') && currentUser) {
-    document.getElementById('comment-box')?.classList.remove('hidden');
-  }
-}
-
-function checkLoginAndGo(page) {
-  if (!currentUser) { alert("請先登入才能發文喔！"); showPage('login'); return; }
-  showPage(page);
-}
-
+// ==================== 登入 ====================
 function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
@@ -164,15 +127,13 @@ function doLogin() {
     return;
   }
 
-  fetch('/api/login', { 
+  fetch('/api/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password })
   })
   .then(res => {
-    if (!res.ok) {
-      return res.json().then(err => { throw new Error(err.message || '登入失敗') });
-    }
+    if (!res.ok) throw new Error("帳號或密碼錯誤");
     return res.json();
   })
   .then(data => {
@@ -181,14 +142,10 @@ function doLogin() {
     localStorage.setItem('role', data.role);
     localStorage.setItem('realName', data.realName || '使用者');
 
-    currentUser = {
-      role: data.role,
-      name: data.role === 'admin' ? '系統管理員' : '使用者',
-      anon: data.anonCode
-    };
+    currentUser = { role: data.role, anon: data.anonCode };
 
     document.getElementById('nav-right').innerHTML = `
-      <span>歡迎，${currentUser.name}</span>
+      <span>歡迎，${data.role === 'admin' ? '系統管理員' : '使用者'}</span>
       <button onclick="showPage('posts')">文章列表</button>
       <button onclick="checkLoginAndGo('new-post')">發布文章</button>
       <button onclick="logout()">登出</button>
@@ -197,187 +154,221 @@ function doLogin() {
     showPage('posts');
     loadPosts();
   })
-  .catch(err => {
-    console.error(err);
-    alert(err.message || "帳號或密碼錯誤");
-  });
+  .catch(err => alert(err.message || "登入失敗"));
 }
 
+// ==================== 註冊 ====================
 function doRegister() {
   const realName = document.getElementById('reg-name')?.value.trim();
   const email = document.getElementById('reg-email')?.value.trim();
   const password = document.getElementById('reg-password')?.value;
   const password2 = document.getElementById('reg-password2')?.value;
 
-  // 前端基本驗證
-  if (!realName || !email || !password || !password2) {
-    alert("請填寫完整資料");
-    return;
-  }
-  if (password !== password2) {
-    alert("兩次密碼不一致");
-    return;
-  }
-  if (password.length < 8) {
-    alert("密碼至少 8 碼");
-    return;
-  }
-  if (!/@gmail\.com$/.test(email)) {
-    alert("請使用 Gmail 註冊");
-    return;
-  }
+  if (!realName || !email || !password || !password2) return alert("請填寫完整");
+  if (password !== password2) return alert("兩次密碼不一致");
+  if (password.length < 8) return alert("密碼至少8碼");
+  if (!email.endsWith('@gmail.com')) return alert("請使用 Gmail");
 
-  fetch('/api/register', { 
+  fetch('/api/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ realName, email, password })
   })
   .then(res => {
-    if (!res.ok) {
-      return res.json().then(err => { throw new Error(err.message || '註冊失敗') });
-    }
+    if (!res.ok) throw new Error("註冊失敗（Email可能已存在）");
     return res.json();
   })
-  .then(data => {
-    alert("註冊成功！請用剛剛的帳號密碼登入");
+  .then(() => {
+    alert("註冊成功！請登入");
     showPage('login');
-    
-    document.getElementById('login-email').value = email;
-    document.getElementById('login-password').value = password;
   })
-  .catch(err => {
-    console.error(err);
-    alert(err.message || "註冊失敗（可能帳號已存在）");
-  });
+  .catch(err => alert(err.message));
 }
-  
+
+// ==================== 登出===================
 function logout() {
   localStorage.clear();
   currentUser = null;
-  revealed = {}; 
-  currentPostId = null;
-
+  revealed = {};
   document.getElementById('nav-right').innerHTML = `
     <button onclick="showPage('login')">登入</button>
     <button onclick="showPage('register')">註冊</button>
   `;
-
   document.getElementById('comment-box')?.classList.add('hidden');
-
   showPage('login');
 }
 
-function submitPost() {
-  if (!currentUser) return alert("請先登入");
-  const title = document.getElementById('post-title').value.trim();
-  const content = document.getElementById('post-content').value.trim();
-  if (!title || !content) return alert("標題與內容都要填喔！");
-  if (title.length > 60) return alert("標題最多60字");
-
-  const now = new Date();
-  const newPost = {
-    id: nextPostId++,
-    title, content,
-    authorAnon: currentUser.role === "admin" ? "Admin" : currentUser.anon,
-    createdAt: now.toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'}) + " " + now.toTimeString().slice(0,5),
-    comments: []
-  };
-  realNameDB[newPost.authorAnon] = currentUser.role === "admin" ? "系統管理員" : "某位使用者";
-  posts.unshift(newPost);
-  alert("文章發布成功！");
-  document.getElementById('post-title').value = "";
-  document.getElementById('post-content').value = "";
-  showPage('posts');
-  loadPosts();
+// ==================== 檢查登入並跳轉 ===================
+function checkLoginAndGo(page) {
+  if (!localStorage.getItem('token')) {
+    alert("請先登入！");
+    showPage('login');
+    return;
+  }
+  showPage(page);
 }
 
+// ==================== 取得文章列表 ===================
 function loadPosts() {
   const kw = (document.getElementById('search-input')?.value || "").toLowerCase();
-  const list = document.getElementById('post-list'); list.innerHTML = "";
-  posts.filter(p => p.title.toLowerCase().includes(kw)).forEach(p => {
-    const div = document.createElement('div'); div.className = "post-item";
-    div.innerHTML = `
-      <h3><a href="#" onclick="event.preventDefault(); showDetail(${p.id})">${p.title}</a></h3>
-      <div class="meta">
-        ${p.authorAnon} ｜ ${p.createdAt}
-        ${currentUser ? `<button class="btn-reveal" onclick="event.preventDefault(); toggleRealName('post',${p.id},'${p.authorAnon}',this)">查看真實姓名</button>` : ''}
-      </div>
-    `;
-    list.appendChild(div);
-  });
+  fetch('/api/posts')
+    .then(res => res.json())
+    .then(posts => {
+      const list = document.getElementById('post-list'); list.innerHTML = "";
+      posts
+        .filter(p => p.title.toLowerCase().includes(kw))
+        .forEach(p => {
+          const div = document.createElement('div'); div.className = "post-item";
+          div.innerHTML = `
+            <h3><a href="#" onclick="event.preventDefault(); showDetail(${p.id})">${p.title}</a></h3>
+            <div class="meta">
+              ${p.anonCode} ｜ ${p.createdAt}
+              ${currentUser ? `<button class="btn-reveal" onclick="event.preventDefault(); toggleRealName('post',${p.id},'${p.anonCode}',this)">查看真實姓名</button>` : ''}
+            </div>
+          `;
+          list.appendChild(div);
+        });
+    });
 }
 
+// ==================== 發布文章 ===================
+function submitPost() {
+  const title = document.getElementById('post-title').value.trim();
+  const content = document.getElementById('post-content').value.trim();
+  if (!title || !content) return alert("標題與內容都要填");
+
+  fetch('/api/posts', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + localStorage.getItem('token')
+    },
+    body: JSON.stringify({ title, content })
+  })
+  .then(res => {
+    if (!res.ok) throw new Error("發布失敗");
+    alert("文章發布成功！");
+    showPage('posts');
+    loadPosts();
+  })
+  .catch(err => alert(err.message));
+}
+
+// ==================== 取得單篇文章 + 留言 ===================
 function showDetail(id) {
   currentPostId = id;
-  const p = posts.find(x => x.id === id);
-  document.getElementById('post-title').textContent = p.title;
-  document.getElementById('post-content').textContent = p.content;
-  document.getElementById('post-author-line').innerHTML = `
-    ${p.authorAnon} ｜ ${p.createdAt}
-    ${currentUser ? `<button class="btn-reveal" onclick="event.preventDefault(); toggleRealName('post',${p.id},'${p.authorAnon}',this)">查看真實姓名</button>` : ''}
-  `;
-  renderComments();
-  showPage('post-detail');
+  fetch(`/api/posts/${id}`)
+    .then(res => res.json())
+    .then(post => {
+      document.getElementById('post-title').textContent = post.title;
+      document.getElementById('post-content').textContent = post.content;
+      document.getElementById('post-author-line').innerHTML = `
+        ${post.anonCode} ｜ ${post.createdAt}
+        ${currentUser ? `<button class="btn-reveal" onclick="toggleRealName('post',${post.id},'${post.anonCode}',this)">查看真實姓名</button>` : ''}
+      `;
+      renderComments(post.comments || []);
+      showPage('post-detail');
+    });
 }
 
-function renderComments() {
-  const post = posts.find(p => p.id === currentPostId);
+function renderComments(comments) {
   const div = document.getElementById('comments'); div.innerHTML = "";
-  (post.comments || []).forEach(c => {
+  comments.forEach(c => {
     const item = document.createElement('div'); item.className = "comment";
     item.innerHTML = `
-      <strong>${c.authorAnon}：</strong>${c.content}
+      <strong>${c.anonCode}：</strong>${c.content}
       <div class="comment-meta">
-        <small style="color:#999;">${c.time}</small>
-        ${currentUser ? `<button class="btn-reveal" onclick="event.preventDefault(); toggleRealName('comment',${c.id},'${c.authorAnon}',this)">查看真實姓名</button>` : ''}
+        <small style="color:#999;">${c.createdAt}</small>
+        ${currentUser ? `<button class="btn-reveal" onclick="toggleRealName('comment',${c.id},'${c.anonCode}',this)">查看真實姓名</button>` : ''}
       </div>
     `;
     div.appendChild(item);
   });
 }
 
+// ==================== 發布留言 ===================
 function submitComment() {
-  if (!currentUser) return alert("請先登入才能留言");
-  const input = document.getElementById('comment-input');
-  const content = input.value.trim();
-  if (!content) return alert("請輸入留言內容");
-  const post = posts.find(p => p.id === currentPostId);
-  post.comments.push({
-    id: Date.now(),
-    authorAnon: currentUser.role === "admin" ? "Admin" : currentUser.anon,
-    content,
-    time: new Date().toTimeString().slice(0,5)
-  });
-  input.value = "";
-  renderComments();
+  const content = document.getElementById('comment-input').value.trim();
+  if (!content) return alert("請輸入留言");
+
+  fetch(`/api/posts/${currentPostId}/comments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + localStorage.getItem('token')
+    },
+    body: JSON.stringify({ content })
+  })
+  .then(res => {
+    if (!res.ok) throw new Error("留言失敗");
+    document.getElementById('comment-input').value = "";
+    showDetail(currentPostId); 
+  })
+  .catch(err => alert(err.message));
 }
 
-function toggleRealName(type, id, anon, btn) {
+// ==================== 管理員查看真實姓名（只顯示一次） ===================
+function toggleRealName(type, id, anonCode, btn) {
   if (!currentUser) return;
   const key = type + "-" + id;
+
   if (currentUser.role !== "admin") {
     const existing = btn.parentNode.querySelector('.no-permission');
-    if (existing) { existing.style.opacity = '0.5'; setTimeout(()=>existing.style.opacity='1',100); return; }
-    const msg = document.createElement('div'); msg.className = "no-permission";
-    msg.textContent = "抱歉！您沒有此權限"; btn.parentNode.appendChild(msg);
+    if (existing) return; 
+    const msg = document.createElement('div');
+    msg.className = "no-permission";
+    msg.textContent = "抱歉！您沒有此權限";
+    btn.parentNode.appendChild(msg);
     setTimeout(() => msg.remove(), 3000);
     return;
   }
+
   if (revealed[key]) {
     btn.parentNode.querySelector('.real-name')?.remove();
-    btn.textContent = "查看真實姓名"; btn.classList.remove('hide');
+    btn.textContent = "查看真實姓名";
+    btn.classList.remove('hide');
     delete revealed[key];
   } else {
-    const span = document.createElement('span'); span.className = "real-name";
-    span.textContent = `（${realNameDB[anon] || "未知"}）`;
-    btn.parentNode.appendChild(span);
-    btn.textContent = "隱藏真實姓名"; btn.classList.add('hide');
-    revealed[key] = true;
+    fetch(`/api/admin/realname?anonCode=${anonCode}`, {
+      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+    })
+    .then(res => res.json())
+    .then(data => {
+      const span = document.createElement('span');
+      span.className = "real-name";
+      span.textContent = `（${data.realName || "未知"}）`;
+      btn.parentNode.appendChild(span);
+      btn.textContent = "隱藏真實姓名";
+      btn.classList.add('hide');
+      revealed[key] = true;
+    });
   }
 }
 
-showPage('login');
+// ==================== 頁面切換 ===================
+function showPage(id) {
+  document.querySelectorAll('.card').forEach(c => c.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  if (id === 'post-detail' && currentUser) {
+    document.getElementById('comment-box')?.classList.remove('hidden');
+  }
+}
+
+if (localStorage.getItem('token')) {
+  currentUser = { role: localStorage.getItem('role'), anon: localStorage.getItem('anonCode') };
+  document.getElementById('nav-right').innerHTML = `
+    <span>歡迎，${currentUser.role === 'admin' ? '系統管理員' : '使用者'}</span>
+    <button onclick="showPage('posts')">文章列表</button>
+    <button onclick="checkLoginAndGo('new-post')">發布文章</button>
+    <button onclick="logout()">登出</button>
+  `;
+  showPage('posts');
+  loadPosts();
+} else {
+  showPage('login');
+}
 </script>
 </body>
 </html>
+
 
