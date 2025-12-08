@@ -60,12 +60,13 @@
           <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#999" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
         </button>
       </div>
-      <button class="btn btn-primary" onclick="doLogin()">登入</button>
+      <button class="btn btn-primary" onclick="login()">立即登入</button>
       <div class="link">還沒有帳號？<button style="background:none;border:none;color:var(--accent);font-weight:bold;cursor:pointer;" onclick="showPage('register')">立即註冊</button></div>
     </div>
 
     <div id="register" class="card hidden">
       <h1>會員註冊</h1>
+
       <div class="input-group"><input type="text" placeholder="真實姓名（僅管理員可見）"></div>
       <div class="input-group"><input type="email" placeholder="Gmail 帳號"></div>
       <div class="input-group">
@@ -156,7 +157,6 @@ function doLogin() {
   })
   .catch(err => alert(err.message || "登入失敗"));
 }
-
 // ==================== 註冊 ====================
 function doRegister() {
   const realName = document.getElementById('reg-name')?.value.trim();
@@ -184,7 +184,6 @@ function doRegister() {
   })
   .catch(err => alert(err.message));
 }
-
 // ==================== 登出===================
 function logout() {
   localStorage.clear();
