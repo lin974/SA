@@ -5,9 +5,12 @@ public class get_real_name {
     // ==========================================
     // Part 1: 設定區 (Configuration)
     // ==========================================
+
     static final String DB_URL = "jdbc:mysql://127.0.0.1:3306/SA_DB?serverTimezone=UTC";
     static final String DB_USER = "root";
-    static final String DB_PASSWORD = "123456"; 
+    static final String DB_PASSWORD = "123456";
+
+
 
     // 要放id
     static final int target_topic_id = 1; 
