@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>匿名論壇系統</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src *; img-src * data:; style-src * 'unsafe-inline';">
 <style>
   :root { --primary:#2c3e50; --accent:#3498db; --card-bg:#fff; --input-bg:#fafafa; --border:#e0e0e0; }
   * { box-sizing:border-box; }
@@ -361,6 +361,7 @@ if (localStorage.getItem('token')) {
 </script>
 </body>
 </html>
+
 
 
 
