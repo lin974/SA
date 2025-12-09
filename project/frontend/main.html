@@ -228,7 +228,7 @@ function submitPost() {
   const content = document.getElementById('post-content').value.trim();
   if (!title || !content) return alert("標題與內容都要填");
 
-  fetch('/api/posts', {
+  fetch(`${API}/posts`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -320,7 +320,7 @@ function toggleRealName(type, id, anonCode, btn) {
     btn.classList.remove('hide');
     delete revealed[key];
   } else {
-    fetch(`/api/admin/realname?anonCode=${anonCode}`, {
+    fetch(`${API}/admin/realname?anonCode=${anonCode}`, {
       headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
     })
     .then(res => res.json())
@@ -361,6 +361,7 @@ if (localStorage.getItem('token')) {
 </script>
 </body>
 </html>
+
 
 
 
