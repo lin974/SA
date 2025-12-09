@@ -119,43 +119,35 @@ let currentPostId = null;
 let revealed = {};          
 
 // ==================== 登入 ====================
+const API = 'http://localhost:8080/api';
+
 function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
-
-  if (!email || !password) {
-    alert("請填寫帳號與密碼");
-    return;
-  }
-
-  fetch('/api/login', {
+  
+  fetch(`${API}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password })
   })
   .then(res => {
-    if (!res.ok) throw new Error("帳號或密碼錯誤");
+    console.log('登入狀態碼:', res.status); // 這行一定要加！！
+    if (!res.ok) throw new Error(`登入失敗 ${res.status}`);
     return res.json();
   })
   .then(data => {
+    console.log('登入成功，回傳資料:', data);
     localStorage.setItem('token', data.token);
-    localStorage.setItem('anonCode', data.anonCode);
     localStorage.setItem('role', data.role);
-    localStorage.setItem('realName', data.realName || '使用者');
-
-    currentUser = { role: data.role, anon: data.anonCode };
-
-    document.getElementById('nav-right').innerHTML = `
-      <span>歡迎，${data.role === 'admin' ? '系統管理員' : '使用者'}</span>
-      <button onclick="showPage('posts')">文章列表</button>
-      <button onclick="checkLoginAndGo('new-post')">發布文章</button>
-      <button onclick="logout()">登出</button>
-    `;
-
-    showPage('posts');
-    loadPosts();
+    localStorage.setItem('realName', data.realName || '');
+    localStorage.setItem('anonCode', data.anonCode);
+    alert("登入成功！");
+    location.reload(); // 強制刷新
   })
-  .catch(err => alert(err.message || "登入失敗"));
+  .catch(err => {
+    console.error(err);
+    alert("登入失敗：" + err.message);
+  });
 }
 // ==================== 註冊 ====================
 function doRegister() {
@@ -369,5 +361,6 @@ if (localStorage.getItem('token')) {
 </script>
 </body>
 </html>
+
 
 
