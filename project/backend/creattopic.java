@@ -4,7 +4,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
-public class CommentService {
+public class PostService {
     private static final SecureRandom RNG = new SecureRandom();
     private static final char[] ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".toCharArray();
 
@@ -16,28 +16,31 @@ public class CommentService {
         return sb.toString();
     }
 
-    public void addComment(int userId, String realName, String content) {
+    public void postMessage(int userId, String title, String message) {
         String anonymousName = generateAnonymousName();
-        saveCommentToDatabase(userId, realName, anonymousName, content);
+        saveToDatabase(anonymousName, title, message);
     }
 
-    private void saveCommentToDatabase(int userId, String realName, String anonymousName, String content) {
+    private void saveToDatabase(String anonymousName, String title, String message) {
         String url = "jdbc:mysql://127.0.0.1:3306/SA_DB?serverTimezone=UTC";
         String user = "root";
         String password = "123456";
 
-        String sql = "INSERT INTO comments (user_id, real_name, anonymous_name, content) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO posts (username, title, message) VALUES (?, ?, ?)";
 
         try (Connection conn = DriverManager.getConnection(url, user, password);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, userId);
-            stmt.setString(2, realName);
-            stmt.setString(3, anonymousName);
-            stmt.setString(4, content);
+            stmt.setString(1, anonymousName);
+            stmt.setString(2, title);
+            stmt.setString(3, message);
             stmt.executeUpdate();
         } catch (SQLException e) {
-            e.printStackTrace(); // 真實應用中應該有更好的錯誤處理
+            e.printStackTrace(); // 記得在真實應用中做更完善的錯誤處理
         }
     }
 }
+
+
+
+
 
