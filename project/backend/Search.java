@@ -1,66 +1,105 @@
 import java.sql.*;
-import java.util.Scanner;
+import java.util.ArrayList;
+import java.util.List;
 
-public class Search {
-    // 1. 連線設定 (跟你的 Register.java 保持完全一致)
-    static final String DB_URL = "jdbc:mysql://127.0.0.1:3306/SA_DB?serverTimezone=UTC";
-    static final String DB_USER = "root";
-    static final String DB_PASSWORD = "123456";
+public class SearchTopic {
 
-    public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
+    // =========================
+    // DB connection
+    // =========================
+    static class DB {
+        static final String URL  = "jdbc:mysql://127.0.0.1:3306/SA_DB?serverTimezone=UTC&useSSL=false&characterEncoding=utf8";
+        static final String USER = "root";
+        static final String PASS = "123456";
 
-        System.out.println("=== 論壇文章搜尋系統 ===");
-        System.out.print("請輸入搜尋關鍵字 (搜尋內容): ");
-        String keyword = scanner.nextLine();
+        static Connection getConnection() throws SQLException {
+            return DriverManager.getConnection(URL, USER, PASS);
+        }
+    }
 
-        // 2. SQL 查詢語法
-        // 針對 topic_data 表格進行模糊搜尋 (搜尋 topic_content 欄位)
-        // 注意：這裡假設你的表格是 topic_data，欄位是 random_name, topic_content, topic_time
-        String sql = "SELECT random_name, topic_content, topic_time FROM topic_data WHERE topic_content LIKE ?";
+    // =========================
+    // Domain model (topic row)
+    // =========================
+    public static class Topic {
+        private final String authorName;
+        private final String content;
+        private final String time;
 
-        try {
-            // 載入驅動
-            Class.forName("com.mysql.cj.jdbc.Driver");
+        public Topic(String authorName, String content, String time) {
+            this.authorName = authorName;
+            this.content = content;
+            this.time = time;
+        }
 
-            // 建立連線與 Statement (使用 try-with-resources 自動關閉)
-            try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
-                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+        public String getAuthorName() { return authorName; }
+        public String getContent()    { return content; }
+        public String getTime()       { return time; }
 
-                // 3. 設定搜尋參數 (%關鍵字%)
-                stmt.setString(1, "%" + keyword + "%");
+        @Override
+        public String toString() {
+            return "author=" + authorName +
+                   ", time=" + time +
+                   ", content=" + content;
+        }
+    }
 
-                // 4. 執行查詢
-                try (ResultSet rs = stmt.executeQuery()) {
-                    
-                    System.out.println("\n--- 搜尋結果 ---");
-                    boolean found = false;
+    // =========================
+    // Repository
+    // =========================
+    public interface TopicSearchRepository {
+        List<Topic> searchByKeyword(String keyword);
+    }
 
+    public static class MySQLTopicSearchRepository implements TopicSearchRepository {
+
+        @Override
+        public List<Topic> searchByKeyword(String keyword) {
+            String sql = "SELECT random_name, topic_content, topic_time " +
+                         "FROM topic_data WHERE topic_content LIKE ?";
+
+            List<Topic> result = new ArrayList<>();
+
+            try (Connection conn = DB.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+
+                ps.setString(1, "%" + keyword + "%");
+
+                try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
-                        found = true;
-                        String author = rs.getString("random_name");
+                        String author  = rs.getString("random_name");
                         String content = rs.getString("topic_content");
-                        String time = rs.getString("topic_time");
-
-                        System.out.println("發文者: " + author);
-                        System.out.println("時間:   " + time);
-                        System.out.println("內容:   " + content);
-                        System.out.println("-----------------------");
-                    }
-
-                    if (!found) {
-                        System.out.println("找不到包含 \"" + keyword + "\" 的文章。");
+                        String time    = rs.getString("topic_time");
+                        result.add(new Topic(author, content, time));
                     }
                 }
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
-        } catch (ClassNotFoundException e) {
-            System.out.println("找不到 MySQL Driver！");
-            e.printStackTrace();
-        } catch (SQLException e) {
-            System.out.println("資料庫連線錯誤！請確認 topic_data 表格是否存在。");
-            e.printStackTrace();
-        } finally {
-            scanner.close();
+
+            return result;
+        }
+    }
+
+    // =========================
+    // Service
+    // =========================
+    public interface TopicSearchService {
+        List<Topic> search(String keyword);
+    }
+
+    public static class TopicSearchServiceImpl implements TopicSearchService {
+        private final TopicSearchRepository repo;
+
+        public TopicSearchServiceImpl(TopicSearchRepository repo) {
+            this.repo = repo;
+        }
+
+        @Override
+        public List<Topic> search(String keyword) {
+            if (keyword == null || keyword.isBlank()) {
+                throw new IllegalArgumentException("keyword must not be empty");
+            }
+            return repo.searchByKeyword(keyword.trim());
         }
     }
 }
